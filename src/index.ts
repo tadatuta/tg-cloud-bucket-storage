@@ -1,0 +1,110 @@
+import { config } from './config.js';
+import { Storage } from './storage.js';
+import { validateTelegramInitData, parseTelegramInitData } from './telegram.js';
+
+interface YcfEvent {
+    httpMethod: string;
+    headers: Record<string, string>;
+    url: string;
+    queryStringParameters: Record<string, string>;
+    path: string;
+    pathParameters: Record<string, string>;
+    body: string;
+    isBase64Encoded: boolean;
+}
+
+interface YcfResponse {
+    statusCode: number;
+    headers?: Record<string, string>;
+    body?: string;
+}
+
+export const handler = async (event: YcfEvent): Promise<YcfResponse> => {
+    const { httpMethod, headers, body } = event;
+
+    const responseHeaders: Record<string, string> = {
+        'Access-Control-Allow-Origin': config.ALLOWED_ORIGIN,
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, X-Telegram-Init-Data',
+        'Content-Type': 'application/json'
+    };
+
+    if (httpMethod === 'OPTIONS') {
+        return {
+            statusCode: 204,
+            headers: responseHeaders,
+        };
+    }
+
+    // Auth Validation
+    const initData = headers['X-Telegram-Init-Data'];
+    const isValid = validateTelegramInitData(initData || '');
+
+    if (!isValid) {
+        if (config.TELEGRAM_BOT_TOKEN !== 'dummy_token') {
+            return {
+                statusCode: 401,
+                headers: responseHeaders,
+                body: JSON.stringify({ error: 'Unauthorized' }),
+            };
+        }
+    }
+
+    const { user } = parseTelegramInitData(initData || '');
+    const userId = user?.id;
+
+    if (!userId) {
+        return {
+            statusCode: 400,
+            headers: responseHeaders,
+            body: JSON.stringify({ error: 'User ID not found in Telegram data' }),
+        };
+    }
+
+    try {
+        if (httpMethod === 'GET') {
+            const data = await Storage.read(userId);
+
+            return {
+                statusCode: 200,
+                headers: responseHeaders,
+                body: JSON.stringify(data),
+            };
+        } else if (httpMethod === 'POST') {
+            let requestBody = body;
+            if (event.isBase64Encoded) {
+                requestBody = Buffer.from(body, 'base64').toString('utf-8');
+            }
+
+            try {
+                const data = JSON.parse(requestBody || '{}');
+                await Storage.write(userId, data);
+                return {
+                    statusCode: 200,
+                    headers: responseHeaders,
+                    body: JSON.stringify({ success: true }),
+                };
+            } catch (e) {
+                return {
+                    statusCode: 400,
+                    headers: responseHeaders,
+                    body: JSON.stringify({ error: 'Invalid JSON' }),
+                };
+            }
+        }
+
+        return {
+            statusCode: 405,
+            headers: responseHeaders,
+            body: JSON.stringify({ error: 'Method Not Allowed' }),
+        };
+    } catch (error) {
+        console.error(error);
+        return {
+            statusCode: 500,
+            headers: responseHeaders,
+            body: JSON.stringify({ error: 'Internal Server Error' }),
+        };
+    }
+};
+
