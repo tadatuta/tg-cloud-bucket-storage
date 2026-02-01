@@ -6,6 +6,7 @@ export interface StorageData {
     logs?: { id: string; workoutTypeId: string; reps: number; weight: number; date: string }[];
     profile?: {
         isPublic: boolean;
+        showFullHistory?: boolean;
         displayName?: string;
         telegramUsername?: string;
         telegramUserId: number;
@@ -24,6 +25,8 @@ export interface PublicProfileData {
         lastWorkoutDate?: string;
     };
     recentActivity: { date: string; exerciseCount: number }[];
+    logs?: { id: string; workoutTypeId: string; reps: number; weight: number; date: string }[];
+    workoutTypes?: { id: string; name: string }[];
 }
 
 interface UsernameIndex {
@@ -126,6 +129,10 @@ export class Storage {
                 lastWorkoutDate,
             },
             recentActivity,
+            ...(data.profile.showFullHistory ? {
+                logs,
+                workoutTypes,
+            } : {})
         };
     }
 }
