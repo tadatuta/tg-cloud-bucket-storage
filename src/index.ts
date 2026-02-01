@@ -20,7 +20,7 @@ interface YcfResponse {
 }
 
 export const handler = async (event: YcfEvent): Promise<YcfResponse> => {
-    const { httpMethod, headers, body } = event;
+    const { httpMethod, headers, body, path } = event;
 
     const responseHeaders: Record<string, string> = {
         'Access-Control-Allow-Origin': config.ALLOWED_ORIGIN,
@@ -36,7 +36,36 @@ export const handler = async (event: YcfEvent): Promise<YcfResponse> => {
         };
     }
 
-    // Auth Validation
+    // --- Public Profile Endpoint (no auth required) ---
+    // Check for ?profile=<identifier> query parameter
+    const profileIdentifier = event.queryStringParameters?.profile;
+    if (profileIdentifier && httpMethod === 'GET') {
+        const identifier = decodeURIComponent(profileIdentifier);
+        try {
+            const publicProfile = await Storage.getPublicProfile(identifier);
+            if (!publicProfile) {
+                return {
+                    statusCode: 404,
+                    headers: responseHeaders,
+                    body: JSON.stringify({ error: 'Profile not found or is private' }),
+                };
+            }
+            return {
+                statusCode: 200,
+                headers: responseHeaders,
+                body: JSON.stringify(publicProfile),
+            };
+        } catch (error) {
+            console.error('Error fetching public profile:', error);
+            return {
+                statusCode: 500,
+                headers: responseHeaders,
+                body: JSON.stringify({ error: 'Internal Server Error' }),
+            };
+        }
+    }
+
+    // --- Auth Required for all other endpoints ---
     const initData = headers['X-Telegram-Init-Data'];
     const isValid = validateTelegramInitData(initData || '');
 
@@ -78,6 +107,15 @@ export const handler = async (event: YcfEvent): Promise<YcfResponse> => {
 
             try {
                 const data = JSON.parse(requestBody || '{}');
+
+                // Auto-populate profile with Telegram user info if updating profile
+                if (data.profile && user) {
+                    data.profile.telegramUserId = user.id;
+                    if (user.username && !data.profile.telegramUsername) {
+                        data.profile.telegramUsername = user.username;
+                    }
+                }
+
                 await Storage.write(userId, data);
                 return {
                     statusCode: 200,
