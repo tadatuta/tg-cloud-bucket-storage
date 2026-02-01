@@ -10,6 +10,7 @@ export interface StorageData {
         displayName?: string;
         telegramUsername?: string;
         telegramUserId: number;
+        photoUrl?: string;
         createdAt: string;
     };
     [key: string]: any;
@@ -18,6 +19,7 @@ export interface StorageData {
 export interface PublicProfileData {
     displayName: string;
     identifier: string;
+    photoUrl?: string;
     stats: {
         totalWorkouts: number;
         totalVolume: number;
@@ -122,6 +124,7 @@ export class Storage {
         return {
             displayName: data.profile.displayName || data.profile.telegramUsername || `User ${userId}`,
             identifier: data.profile.telegramUsername || `id_${userId}`,
+            photoUrl: data.profile.photoUrl,
             stats: {
                 totalWorkouts: uniqueDays.size,
                 totalVolume,

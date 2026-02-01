@@ -114,6 +114,9 @@ export const handler = async (event: YcfEvent): Promise<YcfResponse> => {
                     if (user.username && !data.profile.telegramUsername) {
                         data.profile.telegramUsername = user.username;
                     }
+                    if (user.photo_url) {
+                        data.profile.photoUrl = user.photo_url;
+                    }
                 }
 
                 await Storage.write(userId, data);
