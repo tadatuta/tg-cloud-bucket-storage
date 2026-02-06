@@ -1,5 +1,15 @@
 import fs from 'node:fs/promises';
+import path from 'node:path';
 import { config } from './config.js';
+
+// Sanitize userId to prevent path traversal attacks
+function sanitizeUserId(userId: string | number): string {
+    const sanitized = String(userId).replace(/[^0-9]/g, '');
+    if (!sanitized) {
+        throw new Error('Invalid user ID');
+    }
+    return sanitized;
+}
 
 export interface StorageData {
     workoutTypes?: { id: string; name: string }[];
@@ -40,7 +50,9 @@ export class Storage {
 
     static async read(userId: string | number): Promise<StorageData> {
         try {
-            const content = await fs.readFile(`${config.STORAGE_DIR}/${userId}.json`, 'utf-8');
+            const safeId = sanitizeUserId(userId);
+            const filePath = path.join(config.STORAGE_DIR, `${safeId}.json`);
+            const content = await fs.readFile(filePath, 'utf-8');
             return JSON.parse(content);
         } catch (e) { }
 
@@ -48,7 +60,9 @@ export class Storage {
     }
 
     static async write(userId: string | number, data: StorageData): Promise<void> {
-        await fs.writeFile(`${config.STORAGE_DIR}/${userId}.json`, JSON.stringify(data));
+        const safeId = sanitizeUserId(userId);
+        const filePath = path.join(config.STORAGE_DIR, `${safeId}.json`);
+        await fs.writeFile(filePath, JSON.stringify(data));
 
         // Update username index if profile has username
         if (data.profile?.telegramUsername) {
