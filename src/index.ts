@@ -70,13 +70,11 @@ export const handler = async (event: YcfEvent): Promise<YcfResponse> => {
     const isValid = validateTelegramInitData(initData || '');
 
     if (!isValid) {
-        if (config.TELEGRAM_BOT_TOKEN !== 'dummy_token') {
-            return {
-                statusCode: 401,
-                headers: responseHeaders,
-                body: JSON.stringify({ error: 'Unauthorized' }),
-            };
-        }
+        return {
+            statusCode: 401,
+            headers: responseHeaders,
+            body: JSON.stringify({ error: 'Unauthorized' }),
+        };
     }
 
     const { user } = parseTelegramInitData(initData || '');
