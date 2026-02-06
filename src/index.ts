@@ -106,6 +106,42 @@ export const handler = async (event: YcfEvent): Promise<YcfResponse> => {
             try {
                 const data = JSON.parse(requestBody || '{}');
 
+                // Input validation
+                const MAX_NAME_LENGTH = 100;
+                const MAX_LOGS = 100;
+                const MAX_DISPLAY_NAME = 50;
+
+                // Validate workout types
+                if (data.workoutTypes) {
+                    for (const type of data.workoutTypes) {
+                        if (type.name && type.name.length > MAX_NAME_LENGTH) {
+                            return {
+                                statusCode: 400,
+                                headers: responseHeaders,
+                                body: JSON.stringify({ error: 'Workout type name too long' }),
+                            };
+                        }
+                    }
+                }
+
+                // Validate logs count (prevent DoS via massive arrays)
+                if (data.logs && data.logs.length > MAX_LOGS) {
+                    return {
+                        statusCode: 400,
+                        headers: responseHeaders,
+                        body: JSON.stringify({ error: 'Too many log entries' }),
+                    };
+                }
+
+                // Validate profile display name
+                if (data.profile?.displayName && data.profile.displayName.length > MAX_DISPLAY_NAME) {
+                    return {
+                        statusCode: 400,
+                        headers: responseHeaders,
+                        body: JSON.stringify({ error: 'Display name too long' }),
+                    };
+                }
+
                 // Auto-populate profile with Telegram user info if updating profile
                 if (data.profile && user) {
                     data.profile.telegramUserId = user.id;
