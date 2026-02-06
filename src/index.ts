@@ -108,8 +108,8 @@ export const handler = async (event: YcfEvent): Promise<YcfResponse> => {
 
                 // Input validation
                 const MAX_NAME_LENGTH = 100;
-                const MAX_LOGS = 100;
-                const MAX_DISPLAY_NAME = 50;
+                const MAX_LOGS = 10000;
+                const MAX_DISPLAY_NAME = 100;
 
                 // Validate workout types
                 if (data.workoutTypes) {
