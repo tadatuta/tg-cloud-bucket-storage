@@ -47,7 +47,7 @@ export const handler = async (event: YcfEvent): Promise<YcfResponse> => {
                 return {
                     statusCode: 404,
                     headers: responseHeaders,
-                    body: JSON.stringify({ error: 'Profile not found or is private' }),
+                    body: JSON.stringify({ error: 'Not found' }),
                 };
             }
             return {

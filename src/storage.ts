@@ -88,7 +88,16 @@ export class Storage {
     static async findUserIdByIdentifier(identifier: string): Promise<string | number | null> {
         // Check if it's an id_XXX format
         if (identifier.startsWith('id_')) {
-            return identifier.replace('id_', '');
+            const rawId = identifier.replace('id_', '');
+            // Sanitize: only allow digits
+            const sanitizedId = rawId.replace(/[^0-9]/g, '');
+            return sanitizedId || null;
+        }
+
+        // Validate username format (Telegram usernames: 5-32 chars, a-z, 0-9, underscore)
+        const usernameRegex = /^[a-zA-Z0-9_]{5,32}$/;
+        if (!usernameRegex.test(identifier)) {
+            return null;
         }
 
         // Look up by username
