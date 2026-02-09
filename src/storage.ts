@@ -12,9 +12,11 @@ function sanitizeUserId(userId: string | number): string {
 }
 
 export interface StorageData {
-    workoutTypes?: { id: string; name: string }[];
-    logs?: { id: string; workoutTypeId: string; reps: number; weight: number; date: string }[];
+    workoutTypes?: { id: string; name: string; updatedAt?: string; isDeleted?: boolean }[];
+    logs?: { id: string; workoutTypeId: string; reps?: number; weight?: number; duration?: number; date: string; updatedAt?: string; isDeleted?: boolean }[];
+    workouts?: { id: string; startTime: string; endTime?: string; name?: string; status: string; isManual: boolean; pauseIntervals: any[]; updatedAt?: string; isDeleted?: boolean }[];
     profile?: {
+        id: string; // 'me' or telegram user id
         isPublic: boolean;
         showFullHistory?: boolean;
         displayName?: string;
@@ -22,6 +24,14 @@ export interface StorageData {
         telegramUserId: number;
         photoUrl?: string;
         createdAt: string;
+        updatedAt?: string;
+        isDeleted?: boolean;
+        // Personal Data
+        gender?: 'male' | 'female' | 'other';
+        birthDate?: string;
+        height?: number;
+        weight?: number;
+        additionalInfo?: string;
     };
     [key: string]: any;
 }
@@ -37,7 +47,7 @@ export interface PublicProfileData {
         lastWorkoutDate?: string;
     };
     recentActivity: { date: string; exerciseCount: number }[];
-    logs?: { id: string; workoutTypeId: string; reps: number; weight: number; date: string }[];
+    logs?: { id: string; workoutTypeId: string; reps?: number; weight?: number; duration?: number; date: string }[];
     workoutTypes?: { id: string; name: string }[];
 }
 
@@ -116,7 +126,7 @@ export class Storage {
         const workoutTypes = data.workoutTypes || [];
 
         // Calculate stats
-        const totalVolume = logs.reduce((acc, l) => acc + (l.weight * l.reps), 0);
+        const totalVolume = logs.reduce((acc, l) => acc + ((l.weight || 0) * (l.reps || 0)), 0);
         const uniqueDays = new Set(logs.map(l => l.date.split('T')[0]));
 
         // Find favorite exercise (most logged)
@@ -156,10 +166,15 @@ export class Storage {
             },
             recentActivity,
             ...(data.profile.showFullHistory ? {
-                logs,
-                workoutTypes,
+                // Filter deleted records and remove internal fields
+                logs: logs
+                    .filter(l => !l.isDeleted)
+                    .map(({ id, workoutTypeId, reps, weight, duration, date }) =>
+                        ({ id, workoutTypeId, reps, weight, duration, date })),
+                workoutTypes: workoutTypes
+                    .filter(t => !t.isDeleted)
+                    .map(({ id, name }) => ({ id, name })),
             } : {})
         };
     }
 }
-

@@ -5,7 +5,7 @@
   "description": "",
   "main": "src/server.ts",
   "scripts": {
-    "build": "rimraf dist && tsc",
+    "build": "rimraf dist && tsc && cp package.json package-lock.json dist/",
     "start": "node dist/index.js",
     "dev": "node src/index.ts"
   },
@@ -16,5 +16,8 @@
     "@types/node": "^25.0.9",
     "rimraf": "^6.1.2",
     "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@google/genai": "^1.40.0"
   }
 }

@@ -1,6 +1,7 @@
 import { config } from './config.js';
 import { Storage } from './storage.js';
 import { validateTelegramInitData, parseTelegramInitData } from './telegram.js';
+import { generateRecommendation } from './ai.js';
 
 interface YcfEvent {
     httpMethod: string;
@@ -26,7 +27,9 @@ export const handler = async (event: YcfEvent): Promise<YcfResponse> => {
         'Access-Control-Allow-Origin': config.ALLOWED_ORIGIN,
         'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type, X-Telegram-Init-Data',
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'X-Content-Type-Options': 'nosniff',
+        'Strict-Transport-Security': 'max-age=31536000; includeSubDomains'
     };
 
     if (httpMethod === 'OPTIONS') {
@@ -103,68 +106,99 @@ export const handler = async (event: YcfEvent): Promise<YcfResponse> => {
                 requestBody = Buffer.from(body, 'base64').toString('utf-8');
             }
 
-            try {
-                const data = JSON.parse(requestBody || '{}');
+            const aiAction = event.queryStringParameters?.action === 'ai';
 
-                // Input validation
-                const MAX_NAME_LENGTH = 100;
-                const MAX_LOGS = 10000;
-                const MAX_DISPLAY_NAME = 100;
+            if (aiAction) {
+                try {
+                    const data = JSON.parse(requestBody || '{}');
+                    // Fetch full user data to pass to AI
+                    const userData = await Storage.read(userId);
 
-                // Validate workout types
-                if (data.workoutTypes) {
-                    for (const type of data.workoutTypes) {
-                        if (type.name && type.name.length > MAX_NAME_LENGTH) {
-                            return {
-                                statusCode: 400,
-                                headers: responseHeaders,
-                                body: JSON.stringify({ error: 'Workout type name too long' }),
-                            };
+                    const recommendation = await generateRecommendation({
+                        ...data,
+                        profile: userData.profile,
+                        logs: userData.logs,
+                        workouts: userData.workouts,
+                        workoutTypes: userData.workoutTypes
+                    });
+
+                    return {
+                        statusCode: 200,
+                        headers: responseHeaders,
+                        body: JSON.stringify({ recommendation }),
+                    };
+                } catch (e) {
+                    console.error(e);
+                    return {
+                        statusCode: 500,
+                        headers: responseHeaders,
+                        body: JSON.stringify({ error: 'AI Generation Failed' }),
+                    };
+                }
+            } else {
+                try {
+                    const data = JSON.parse(requestBody || '{}');
+
+                    // Input validation
+                    const MAX_NAME_LENGTH = 100;
+                    const MAX_LOGS = 10000;
+                    const MAX_DISPLAY_NAME = 100;
+
+                    // Validate workout types
+                    if (data.workoutTypes) {
+                        for (const type of data.workoutTypes) {
+                            if (type.name && type.name.length > MAX_NAME_LENGTH) {
+                                return {
+                                    statusCode: 400,
+                                    headers: responseHeaders,
+                                    body: JSON.stringify({ error: 'Workout type name too long' }),
+                                };
+                            }
                         }
                     }
-                }
 
-                // Validate logs count (prevent DoS via massive arrays)
-                if (data.logs && data.logs.length > MAX_LOGS) {
+                    // Validate logs count (prevent DoS via massive arrays)
+                    if (data.logs && data.logs.length > MAX_LOGS) {
+                        return {
+                            statusCode: 400,
+                            headers: responseHeaders,
+                            body: JSON.stringify({ error: 'Too many log entries' }),
+                        };
+                    }
+
+                    // Validate profile display name
+                    if (data.profile?.displayName && data.profile.displayName.length > MAX_DISPLAY_NAME) {
+                        return {
+                            statusCode: 400,
+                            headers: responseHeaders,
+                            body: JSON.stringify({ error: 'Display name too long' }),
+                        };
+                    }
+
+                    // Auto-populate profile with Telegram user info if updating profile
+                    if (data.profile && user) {
+                        data.profile.telegramUserId = user.id;
+                        if (user.username && !data.profile.telegramUsername) {
+                            data.profile.telegramUsername = user.username;
+                        }
+                        if (user.photo_url) {
+                            data.profile.photoUrl = user.photo_url;
+                        }
+                    }
+
+                    await Storage.write(userId, data);
+                    return {
+                        statusCode: 200,
+                        headers: responseHeaders,
+                        body: JSON.stringify({ success: true }),
+                    };
+                } catch (e) {
                     return {
                         statusCode: 400,
                         headers: responseHeaders,
-                        body: JSON.stringify({ error: 'Too many log entries' }),
+                        body: JSON.stringify({ error: 'Invalid JSON' }),
                     };
                 }
-
-                // Validate profile display name
-                if (data.profile?.displayName && data.profile.displayName.length > MAX_DISPLAY_NAME) {
-                    return {
-                        statusCode: 400,
-                        headers: responseHeaders,
-                        body: JSON.stringify({ error: 'Display name too long' }),
-                    };
-                }
-
-                // Auto-populate profile with Telegram user info if updating profile
-                if (data.profile && user) {
-                    data.profile.telegramUserId = user.id;
-                    if (user.username && !data.profile.telegramUsername) {
-                        data.profile.telegramUsername = user.username;
-                    }
-                    if (user.photo_url) {
-                        data.profile.photoUrl = user.photo_url;
-                    }
-                }
-
-                await Storage.write(userId, data);
-                return {
-                    statusCode: 200,
-                    headers: responseHeaders,
-                    body: JSON.stringify({ success: true }),
-                };
-            } catch (e) {
-                return {
-                    statusCode: 400,
-                    headers: responseHeaders,
-                    body: JSON.stringify({ error: 'Invalid JSON' }),
-                };
             }
         }
 
@@ -182,4 +216,3 @@ export const handler = async (event: YcfEvent): Promise<YcfResponse> => {
         };
     }
 };
-
