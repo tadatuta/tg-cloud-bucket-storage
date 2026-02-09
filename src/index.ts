@@ -2,6 +2,7 @@ import { config } from './config.js';
 import { Storage } from './storage.js';
 import { validateTelegramInitData, parseTelegramInitData } from './telegram.js';
 import { generateRecommendation } from './ai.js';
+import { marked } from 'marked';
 
 interface YcfEvent {
     httpMethod: string;
@@ -122,10 +123,12 @@ export const handler = async (event: YcfEvent): Promise<YcfResponse> => {
                         workoutTypes: userData.workoutTypes
                     });
 
+                    const recommendationHtml = await marked(recommendation);
+
                     return {
                         statusCode: 200,
                         headers: responseHeaders,
-                        body: JSON.stringify({ recommendation }),
+                        body: JSON.stringify({ recommendation: recommendationHtml }),
                     };
                 } catch (e) {
                     console.error(e);
