@@ -13,7 +13,7 @@ function sanitizeUserId(userId: string | number): string {
 
 export interface StorageData {
     workoutTypes?: { id: string; name: string; updatedAt?: string; isDeleted?: boolean }[];
-    logs?: { id: string; workoutTypeId: string; reps?: number; weight?: number; duration?: number; date: string; updatedAt?: string; isDeleted?: boolean }[];
+    logs?: { id: string; workoutTypeId: string; reps?: number; weight?: number; duration?: number; date: string; workoutId?: string; updatedAt?: string; isDeleted?: boolean }[];
     workouts?: { id: string; startTime: string; endTime?: string; name?: string; status: string; isManual: boolean; pauseIntervals: any[]; updatedAt?: string; isDeleted?: boolean }[];
     profile?: {
         id: string; // 'me' or telegram user id
@@ -47,7 +47,7 @@ export interface PublicProfileData {
         lastWorkoutDate?: string;
     };
     recentActivity: { date: string; exerciseCount: number }[];
-    logs?: { id: string; workoutTypeId: string; reps?: number; weight?: number; duration?: number; date: string }[];
+    logs?: { id: string; workoutTypeId: string; reps?: number; weight?: number; duration?: number; date: string; workoutId?: string }[];
     workoutTypes?: { id: string; name: string }[];
 }
 
@@ -169,8 +169,8 @@ export class Storage {
                 // Filter deleted records and remove internal fields
                 logs: logs
                     .filter(l => !l.isDeleted)
-                    .map(({ id, workoutTypeId, reps, weight, duration, date }) =>
-                        ({ id, workoutTypeId, reps, weight, duration, date })),
+                    .map(({ id, workoutTypeId, reps, weight, duration, date, workoutId }) =>
+                        ({ id, workoutTypeId, reps, weight, duration, date, workoutId })),
                 workoutTypes: workoutTypes
                     .filter(t => !t.isDeleted)
                     .map(({ id, name }) => ({ id, name })),
